@@ -28,7 +28,7 @@ foreach ($ep in $endpoints) {
     }
 }
 
-#disk space check
+#Disk space check
 try {
     $diskInfo = Get-CimInstance -Class Win32_LogicalDisk -Filter "DeviceID='C:'" |
     Select-Object DeviceID, @{n="Free Space (GB)"; e={[math]::Round($_.FreeSpace / 1GB, 2)}}, @{n="Size (GB)"; e={[math]::Round($_.SizeGB/1GB, 2)}}
@@ -41,7 +41,7 @@ try {
 }
 
 
-#check if there is a pending reboot 
+#Check if there is a pending reboot 
 if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending" -EA Ignore) {
     $issues += "Reboot pending (Component Based Servicing)"
 }
@@ -53,7 +53,7 @@ if (Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager" -N
     $issues += "Reboot pending (pending file rename operations)"
 }
 
-#check to see if services are stopped
+#Check to see if services are stopped
 $services = Get-Service -Name "wuauserv", "bits", "cryptsvc" | Where-Object {$_.Status -eq "Stopped"}
 
 foreach ($service in $services) {
@@ -66,7 +66,7 @@ foreach ($service in $services) {
     }
 } 
 
-#check trustedinstaller not disabled
+#Check trustedinstaller not disabled
 if ((Get-Service -Name TrustedInstaller).StartType -eq "Disabled") {
     try {
         Set-Service -Name TrustedInstaller -StartupType Manual
@@ -75,7 +75,7 @@ if ((Get-Service -Name TrustedInstaller).StartType -eq "Disabled") {
     }
 }
 
-#get last reboot time
+#Get last reboot time
 $lastBootTime = (Get-CimInstance -ClassName Win32_OperatingSystem).LastBootUpTime
 
 $finalResult = [PSCustomObject]@{

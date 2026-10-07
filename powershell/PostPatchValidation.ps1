@@ -4,10 +4,10 @@ param(
     [datetime]$patchStartTime
 )
 
-#get last reboot time
+#Get last reboot time
 $currentBootTime = (Get-CimInstance -ClassName Win32_OperatingSystem).LastBootUpTime
 
-#check for Windows Update faluire events
+#Check for Windows Update faluire events
 $updateEvents = Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-WindowsUpdateClient/Operational'; ID=20,25,31; StartTime = $patchStartTime } -ErrorAction SilentlyContinue
 if ($updateEvents) {
     foreach ($winEvent in $updateEvents) {
@@ -15,7 +15,7 @@ if ($updateEvents) {
     }
 }
 
-#check if there is a pending reboot 
+#Check if there is a pending reboot 
 if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending" -EA Ignore) {
     $issues += "Reboot pending (Component Based Servicing)"
 }
@@ -27,7 +27,7 @@ if (Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager" -N
     $issues += "Reboot pending (pending file rename operations)"
 }
 
-#check services health
+#Check services health
 $services = Get-Service -Name "wuauserv", "bits", "cryptsvc" | Where-Object {$_.Status -eq "Stopped"}
 
 foreach ($service in $services) {
@@ -40,7 +40,7 @@ foreach ($service in $services) {
     }
 } 
 
-#check trustedinstaller not disabled
+#Check trustedinstaller not disabled
 if ((Get-Service -Name TrustedInstaller).StartType -eq "Disabled") {
     try {
         Set-Service -Name TrustedInstaller -StartupType Manual
