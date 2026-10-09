@@ -4,9 +4,6 @@ param(
     [datetime]$patchStartTime
 )
 
-#Get last reboot time
-$currentBootTime = (Get-CimInstance -ClassName Win32_OperatingSystem).LastBootUpTime
-
 #Check for Windows Update faluire events
 $updateEvents = Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-WindowsUpdateClient/Operational'; ID=20,25,31; StartTime = $patchStartTime } -ErrorAction SilentlyContinue
 if ($updateEvents) {
@@ -15,7 +12,7 @@ if ($updateEvents) {
     }
 }
 
-#Check if there is a pending reboot 
+#Check if there is a pending reboot ge
 if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending" -EA Ignore) {
     $issues += "Reboot pending (Component Based Servicing)"
 }
@@ -51,7 +48,6 @@ if ((Get-Service -Name TrustedInstaller).StartType -eq "Disabled") {
 
 $finalResult = [PSCustomObject]@{
     ComputerName = $env:COMPUTERNAME
-    CurrentBootTime = $currentBootTime
     Passed       = ($issues.Count -eq 0)
     Issues       = $issues
 
