@@ -1,35 +1,93 @@
 terraform {
   required_providers {
     azurerm = {
-      source = "hashicorp/azurerm"
+      source  = "hashicorp/azurerm"
+      version = "~> 5.9.0"
     }
 
     azuread = {
       source = "hashicorp/azuread"
     }
-
-    random = {
-      source = "hashicorp/random"
-    }
   }
 }
 
 provider "azurerm" {
-  features {}
+  features {
+    resource_group {
+      prevent_deletion_if_contains_resources = false
+    }
+  }
 }
 
+#create resource group
 resource "azurerm_resource_group" "patch_lab" {
   name     = "rg-terraform-patch-lab"
   location = var.location
 }
 
+#create automation account
+resource "azurerm_automation_account" "lab-acc" {
+  name                = "automation-account-patch-lab"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.patch_lab.name
+  sku_name            = "Basic"
+
+  identity {
+    type = "SystemAssigned"
+  }
+}
+
+#create automation account roles
+resource "azurerm_role_assignment" "auto-blob-reader" {
+  scope                = azurerm_storage_account.lab-sa.id
+  role_definition_name = "Storage Blob Data Reader"
+  principal_id         = azurerm_automation_account.lab-acc.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "auto-report-writer" {
+  scope                = azurerm_storage_container.lab-report.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azurerm_automation_account.lab-acc.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "auto-rg-contributor" {
+  scope                = azurerm_resource_group.patch_lab.id
+  role_definition_name = "Contributor"
+  principal_id         = azurerm_automation_account.lab-acc.identity[0].principal_id
+}
+
+#create runbooks
+resource "azurerm_automation_runbook" "pre-event" {
+  name                    = "PreEventRunbook"
+  location                = var.location
+  resource_group_name     = azurerm_resource_group.patch_lab.name
+  automation_account_name = azurerm_automation_account.lab-acc.name
+  runbook_type            = "PowerShell72"
+  log_verbose             = true
+  log_progress            = true
+  content                 = file("${path.module}/../powershell/PreEventRunbook.ps1")
+}
+
+resource "azurerm_automation_runbook" "post-event" {
+  name                    = "PostEventRunbook"
+  location                = var.location
+  resource_group_name     = azurerm_resource_group.patch_lab.name
+  automation_account_name = azurerm_automation_account.lab-acc.name
+  runbook_type            = "PowerShell72"
+  log_verbose             = true
+  log_progress            = true
+  content                 = file("${path.module}/../powershell/PostEventRunbook.ps1")
+}
+
+#create virtual network
 resource "azurerm_virtual_network" "lab_vnet" {
   name                = "vnet-terraform-patch-lab"
-  address_space       = ["0.0.0.0/16"]
+  address_space       = ["10.0.0.0/16"]
   location            = var.location
   resource_group_name = azurerm_resource_group.patch_lab.name
 }
 
+#create subnet
 resource "azurerm_subnet" "lab_subnet" {
   name                 = "subnet-patch-lab"
   resource_group_name  = azurerm_resource_group.patch_lab.name
@@ -37,12 +95,14 @@ resource "azurerm_subnet" "lab_subnet" {
   address_prefixes     = ["10.0.2.0/24"]
 }
 
+#create nsg
 resource "azurerm_network_security_group" "lab-nsg" {
   name                = "nsg-patch-lab"
   location            = var.location
   resource_group_name = azurerm_resource_group.patch_lab.name
+
   security_rule {
-    name                       = "deny-vnet-inbound"
+    name                       = "deny-internet-inbound"
     priority                   = 100
     direction                  = "Inbound"
     access                     = "Deny"
@@ -78,9 +138,14 @@ resource "azurerm_windows_virtual_machine" "lab-vm" {
   name                = "windows-vm"
   resource_group_name = azurerm_resource_group.patch_lab.name
   location            = var.location
-  size                = "---"
-  admin_username      = "var.admin_username"
-  admin_password      = "var.admin_password"
+  size                = "Standard_D2a_v4"
+  admin_username      = var.admin_username
+  admin_password      = var.admin_password
+
+  patch_mode                                             = "AutomaticByPlatform"
+  patch_assessment_mode                                  = "AutomaticByPlatform"
+  provision_vm_agent                                     = true
+  bypass_platform_safety_checks_on_user_schedule_enabled = true
 
   network_interface_ids = [
     azurerm_network_interface.lab-nic.id
@@ -95,7 +160,7 @@ resource "azurerm_windows_virtual_machine" "lab-vm" {
     publisher = "MicrosoftWindowsServer"
     offer     = "WindowsServer"
     sku       = "2016-Datacenter"
-    version   = ""
+    version   = "14393.8783.260109"
   }
 
 }
@@ -109,7 +174,14 @@ resource "azurerm_storage_account" "lab-sa" {
   account_replication_type = "LRS"
 }
 
-#create storage container
+#create compliance report storage container
+resource "azurerm_storage_container" "lab-report" {
+  name                  = "lab-report"
+  storage_account_id    = azurerm_storage_account.lab-sa.id
+  container_access_type = "private"
+}
+
+#create scripts storage container
 resource "azurerm_storage_container" "lab-sc" {
   name                  = "lab-scripts"
   storage_account_id    = azurerm_storage_account.lab-sa.id
@@ -132,4 +204,3 @@ resource "azurerm_storage_blob" "post-check" {
   source               = "${path.module}/../powershell/PostPatchValidation.ps1"
   content_md5          = filemd5("${path.module}/../powershell/PostPatchValidation.ps1")
 }
-

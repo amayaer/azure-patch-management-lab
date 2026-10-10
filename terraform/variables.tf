@@ -1,6 +1,6 @@
 variable "location" {
   type    = string
-  default = "East US 2"
+  default = "eastus"
 
 }
 variable "admin_username" {
