@@ -22,6 +22,9 @@ Before a patch window opens, a runbook checks each VM from the inside. If the pr
 ├── docs/                         
 └── .gitignore
 ```
+## Architecture Diagram
+ 
+<img src="docs/architecture.png" alt="Architecture diagram" width="65%">
 
 ## What the checks do
  
