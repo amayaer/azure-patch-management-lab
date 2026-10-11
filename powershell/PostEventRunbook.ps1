@@ -32,9 +32,21 @@ $query = @"
     | order by id asc 
 "@ 
 
-$windowStart = (Get-Date).AddHours(-3)
+$body = @{
+    query         = $query
+    subscriptions = @($resourceSubscriptionIds)
+    options       = @{ resultFormat = 'objectArray' }
+} | ConvertTo-Json -Depth 5
 
-$targetMachines = Search-AzGraph -Query $query -Subscription $resourceSubscriptionIds
+$resp = Invoke-AzRestMethod -Method POST `
+    -Path "/providers/Microsoft.ResourceGraph/resources?api-version=2021-03-01" `
+    -Payload $body
+
+if ($resp.StatusCode -ne 200) {
+    throw "Resource Graph query failed ($($resp.StatusCode)): $($resp.Content)"
+}
+
+$targetMachines = ($resp.Content | ConvertFrom-Json).data
 
 foreach ($machine in $targetMachines) {
     $checkData = $null

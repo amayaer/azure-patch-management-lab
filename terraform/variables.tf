@@ -16,5 +16,4 @@ variable "admin_password" {
 variable "maintenance_start" {
   description = "Window start, format YYYY-MM-DD HH:MM"
   type        = string
-  default = "2026-10-10 21:00"
 }

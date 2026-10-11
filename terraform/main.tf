@@ -261,7 +261,6 @@ resource "azurerm_storage_blob" "post-check" {
   source               = "${path.module}/../powershell/PostPatchValidation.ps1"
   content_md5          = filemd5("${path.module}/../powershell/PostPatchValidation.ps1")
 }
-
 #create automation account roles
 resource "azurerm_role_assignment" "auto-blob-reader" {
   scope                = azurerm_storage_account.lab-sa.id
