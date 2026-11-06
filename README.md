@@ -13,7 +13,7 @@ Before a patch window opens, a runbook checks each VM from the inside. If the pr
 │   ├── PostPatchValidation.ps1    # runs inside the VM (via Run Command)
 │   ├── PreEventRunbook.ps1        # Automation runbook, triggered by the pre-maintenance event
 │   ├── PostEventRunbook.ps1       # Automation runbook, triggered by the post-maintenance event
-│   └── ComplianceReport.ps1       # Automation runbook, fleet-wide patch report
+│   └── ComplianceReportRunbook.ps1       # Automation runbook, fleet-wide patch report
 ├── terraform/
 │   ├── main.tf                    
 │   ├── variables.tf
