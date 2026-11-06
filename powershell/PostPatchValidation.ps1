@@ -12,7 +12,7 @@ if ($updateEvents) {
     }
 }
 
-#Check if there is a pending reboot ge
+#Check if there is a pending reboot 
 if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending" -EA Ignore) {
     $issues += "Reboot pending (Component Based Servicing)"
 }

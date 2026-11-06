@@ -24,7 +24,7 @@ resource "azurerm_resource_group" "patch_lab" {
 #create automation account
 resource "azurerm_automation_account" "lab-acc" {
   name                = "automation-account-patch-lab"
-  location            = var.location
+  location            = var.automation_location
   resource_group_name = azurerm_resource_group.patch_lab.name
   sku_name            = "Basic"
 
@@ -36,7 +36,7 @@ resource "azurerm_automation_account" "lab-acc" {
 #create pre/post runbooks
 resource "azurerm_automation_runbook" "pre-run" {
   name                    = "PreEventRunbook"
-  location                = var.location
+  location                = var.automation_location
   resource_group_name     = azurerm_resource_group.patch_lab.name
   automation_account_name = azurerm_automation_account.lab-acc.name
   runbook_type            = "PowerShell72"
@@ -48,13 +48,24 @@ resource "azurerm_automation_runbook" "pre-run" {
 
 resource "azurerm_automation_runbook" "post-run" {
   name                    = "PostEventRunbook"
-  location                = var.location
+  location                = var.automation_location
   resource_group_name     = azurerm_resource_group.patch_lab.name
   automation_account_name = azurerm_automation_account.lab-acc.name
   runbook_type            = "PowerShell72"
   log_verbose             = true
   log_progress            = true
   content                 = file("${path.module}/../powershell/PostEventRunbook.ps1")
+}
+
+resource "azurerm_automation_runbook" "compliance-report" {
+  name                    = "ComplianceReportRunbook"
+  location                = var.automation_location
+  resource_group_name     = azurerm_resource_group.patch_lab.name
+  automation_account_name = azurerm_automation_account.lab-acc.name
+  runbook_type            = "PowerShell72"
+  log_verbose             = true
+  log_progress            = true
+  content                 = file("${path.module}/../powershell/ComplianceReportRunbook.ps1")
 }
 
 #create pre/post webhooks 
@@ -261,6 +272,7 @@ resource "azurerm_storage_blob" "post-check" {
   source               = "${path.module}/../powershell/PostPatchValidation.ps1"
   content_md5          = filemd5("${path.module}/../powershell/PostPatchValidation.ps1")
 }
+
 #create automation account roles
 resource "azurerm_role_assignment" "auto-blob-reader" {
   scope                = azurerm_storage_account.lab-sa.id

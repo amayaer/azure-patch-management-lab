@@ -53,7 +53,22 @@ try {
     | order by id asc 
 "@ 
     Write-Output "Querying ARG to get machine details [MaintenanceRunId=$maintenanceRunId][ResourceSubscriptionIdsCount=$($resourceSubscriptionIds.Count)]" 
-    $targetMachines = Search-AzGraph -Query $query -Subscription $resourceSubscriptionIds
+
+    $body = @{
+    query         = $query
+    subscriptions = @($resourceSubscriptionIds)
+    options       = @{ resultFormat = 'objectArray' }
+    } | ConvertTo-Json -Depth 5
+
+    $resp = Invoke-AzRestMethod -Method POST `
+    -Path "/providers/Microsoft.ResourceGraph/resources?api-version=2021-03-01" `
+    -Payload $body
+
+    if ($resp.StatusCode -ne 200) {
+        throw "Resource Graph query failed ($($resp.StatusCode)): $($resp.Content)"
+    }
+
+    $targetMachines = ($resp.Content | ConvertFrom-Json).data
 } catch {
     Stop-MaintenanceRun -RunId $maintenanceRunId -Reason $_.Exception.Message
     return

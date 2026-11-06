@@ -2,36 +2,36 @@
 param()
 
 $issues = @()
+$warnings = @()
 
 # Test DNS resolution
-try {
-    Resolve-DnsName "windowsupdate.microsoft.com" -ErrorAction SilentlyContinue | Format-Table Name, IPAddress
-} catch {
-    $issues += "DNS $ep ($($_.Exception.Message))"
-}
+$dns = Resolve-DnsName "windowsupdate.microsoft.com" -ErrorAction SilentlyContinue
+if (-not $dns) { $issues += "DNS lookup failed for windowsupdate.microsoft.com" }
+
 
 # Test HTTPS connectivity to key endpoints
 $endpoints = @(
-    "https://windowsupdate.microsoft.com",
-    "https://update.microsoft.com",
-    "https://download.windowsupdate.com",
-    "https://dl.delivery.mp.microsoft.com"
+    @{ Host = "windowsupdate.microsoft.com"; Port = 443 },
+    @{ Host = "update.microsoft.com"; Port = 443 },
+    @{ Host = "download.windowsupdate.com"; Port = 80 },
+    @{ Host = "dl.delivery.mp.microsoft.com"; Port = 80 ; Optional = $true }
 )
 
 foreach ($ep in $endpoints) {
-    try {
-        $response = Invoke-WebRequest -Uri $ep -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
-        Write-Output "OK $ep (Status: $($response.StatusCode))"
-    }
-    catch {
-       $issues += "FAIL $ep ($($_.Exception.Message))"
+    $tc = Test-NetConnection -ComputerName $ep.Host -Port $ep.Port -WarningAction SilentlyContinue
+    if (-not $tc.TcpTestSucceeded) {
+        if ($ep.Optional) {
+            $warnings += "Optional endpoint unreachable: $($ep.Host):$($ep.Port)"
+            continue
+        }
+        $issues += "FAIL cannot reach $($ep.Host):$($ep.Port)"
     }
 }
 
 #Disk space check
 try {
     $diskInfo = Get-CimInstance -Class Win32_LogicalDisk -Filter "DeviceID='C:'" |
-    Select-Object DeviceID, @{n="Free Space (GB)"; e={[math]::Round($_.FreeSpace / 1GB, 2)}}, @{n="Size (GB)"; e={[math]::Round($_.SizeGB/1GB, 2)}}
+    Select-Object DeviceID, @{n="Free Space (GB)"; e={[math]::Round($_.FreeSpace / 1GB, 2)}}, @{n="Size (GB)"; e={[math]::Round($_.Size/1GB, 2)}}
         
     if ($diskInfo."Free Space (GB)" -lt 20) {
         $issues += "Low Disk Space: ($($diskInfo.'Free Space (GB)'))"
@@ -57,10 +57,10 @@ if (Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager" -N
 $services = Get-Service -Name "wuauserv", "bits", "cryptsvc" | Where-Object {$_.Status -eq "Stopped"}
 
 foreach ($service in $services) {
-    Write-Verbose  "$($service.Name) is stopped... starting"
+    $warnings +=  "$($service.Name) is stopped... starting"
     try {
-        Start-Service -Name $service.Name
-        $issues += "Service $($service.Name) was stopped and has been restarted"
+        Start-Service -Name $service.Name -ErrorAction Stop
+        $warnings += "Service $($service.Name) was stopped and has been restarted"
     } catch {
         $issues += "Service $($service.Name) is stopped and failed to restart: $_"
     }
@@ -69,19 +69,16 @@ foreach ($service in $services) {
 #Check trustedinstaller not disabled
 if ((Get-Service -Name TrustedInstaller).StartType -eq "Disabled") {
     try {
-        Set-Service -Name TrustedInstaller -StartupType Manual
+        Set-Service -Name TrustedInstaller -StartupType Manual -ErrorAction Stop
     } catch {
         $issues += "Service TrustedInstaller is disabled and failed to update: $_"
     }
 }
 
-#Get last reboot time
-$lastBootTime = (Get-CimInstance -ClassName Win32_OperatingSystem).LastBootUpTime
-
 $finalResult = [PSCustomObject]@{
     ComputerName = $env:COMPUTERNAME
     Passed       = ($issues.Count -eq 0)
     Issues       = $issues
-    LastBootTime = $lastBootTime
+    Warnings     = $warnings
 }
 $finalResult | ConvertTo-Json -Compress

@@ -55,6 +55,14 @@ foreach ($machine in $targetMachines) {
     $rg = $split[4]
     $vmName = $split[8]
 
+    $windowStart = $null
+    if ($machine.startTime) {
+        $windowStart = [datetime]$machine.startTime
+    } else {
+        Write-Warning "No start time for $vmName - falling back to 3 hours ago"
+        $windowStart = (Get-Date).ToUniversalTime().AddHours(-3)
+    }
+
     Write-Output "Running script on $vmName..."
 
     try {
