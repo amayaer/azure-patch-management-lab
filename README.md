@@ -4,7 +4,7 @@ Automated pre- and post-patch health checks around Azure Update Manager schedule
  
 Before a patch window opens, a runbook checks each VM from the inside. If the pre-check script fails, the runbook cancels the maintenance run so patching doesn't occur on an unhealthy machine. If the script passes, it snapshots the OS disks and allows Update Manager to patch. After the window, a second runbook validates the VMs again. 
 
-The compliance report is standalone runbook, ran manually from the Automation account separate from the maintenance window. It queries Azure Resource Graph across the entire fleet, displays the output to the job log, and exports it as a timestamped CSV to the `lab-report` blob container. 
+The compliance report is standalone runbook, run manually from the Automation account separate from the maintenance window. It queries Azure Resource Graph across the entire fleet, displays the output to the job log, and exports it as a timestamped CSV to the `lab-report` blob container. 
 ## Repository Layout
  
 ```
