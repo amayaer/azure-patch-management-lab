@@ -49,10 +49,9 @@ if ($response.StatusCode -ne 200) { throw "Resource Graph query failed: $($respo
 
 $result = ($response.Content | ConvertFrom-Json).data
 
-f ($null -eq $result -or $result.Count -eq 0) {
+if ($null -eq $result -or $result.Count -eq 0) {
     Write-Warning "No Resource Graph results returned. Skipping CSV upload."
-}
-else {
+} else {
     Write-Output $result
 
     $csvPath = Join-Path $env:TEMP "ResourceGraphResults.csv"

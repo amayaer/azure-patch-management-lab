@@ -1,14 +1,18 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
-    [datetime]$patchStartTime
+    [string]$patchRunStartTime
 )
+
+$patchStartTime = ([datetimeoffset]::Parse($PatchRunStartTime)).LocalDateTime
+
+$issues = @()
 
 #Check for Windows Update faluire events
 $updateEvents = Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-WindowsUpdateClient/Operational'; ID=20,25,31; StartTime = $patchStartTime } -ErrorAction SilentlyContinue
 if ($updateEvents) {
     foreach ($winEvent in $updateEvents) {
-        $issues += "Update event $($event.Id) at $($event.TimeCreated): $($event.Message)"
+        $issues += "Update event $($winEvent.Id) at $($winEvent.TimeCreated): $($winEvent.Message)"
     }
 }
 

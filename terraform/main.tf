@@ -158,9 +158,10 @@ resource "azurerm_subnet_network_security_group_association" "nsg-association" {
   network_security_group_id = azurerm_network_security_group.lab-nsg.id
 }
 
-#create network interface for the virtual machine
+#create network interface for the virtual machine(s)
 resource "azurerm_network_interface" "lab-nic" {
-  name                = "lab-nic"
+  count               = 2
+  name                = "lab-nic-${count.index + 1}"
   location            = var.location
   resource_group_name = azurerm_resource_group.patch_lab.name
 
@@ -173,7 +174,8 @@ resource "azurerm_network_interface" "lab-nic" {
 
 #create virtual machine(s)
 resource "azurerm_windows_virtual_machine" "lab-vm" {
-  name                = "windows-vm"
+  count               = 2
+  name                = "windows-vm-${count.index + 1}"
   resource_group_name = azurerm_resource_group.patch_lab.name
   location            = var.location
   size                = "Standard_D2a_v4"
@@ -186,7 +188,7 @@ resource "azurerm_windows_virtual_machine" "lab-vm" {
   bypass_platform_safety_checks_on_user_schedule_enabled = true
 
   network_interface_ids = [
-    azurerm_network_interface.lab-nic.id
+    azurerm_network_interface.lab-nic[count.index].id
   ]
 
   os_disk {
@@ -200,7 +202,6 @@ resource "azurerm_windows_virtual_machine" "lab-vm" {
     sku       = "2016-Datacenter"
     version   = "14393.8783.260109"
   }
-
 }
 
 #create maintenance configuration
@@ -221,16 +222,17 @@ resource "azurerm_maintenance_configuration" "lab-maint" {
   install_patches {
     reboot = "IfRequired"
     windows {
-      classifications_to_include = ["Critical", "Security"]
+      classifications_to_include = ["Critical", "Security", "UpdateRollup","Updates", "Defintion", "FeaturePack", "ServicePack", "Tools"]
     }
   }
 }
 
-#attach VM 
+#attach VM(s) 
 resource "azurerm_maintenance_assignment_virtual_machine" "lab-assign" {
+  count                        = 2
   location                     = var.location
   maintenance_configuration_id = azurerm_maintenance_configuration.lab-maint.id
-  virtual_machine_id           = azurerm_windows_virtual_machine.lab-vm.id
+  virtual_machine_id           = azurerm_windows_virtual_machine.lab-vm[count.index].id
 }
 
 #create storage account
