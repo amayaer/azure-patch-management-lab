@@ -1,6 +1,6 @@
 # Azure Patch Management Automation Lab
 
-Automated pre- and post-patch health checks around Azure Update Manager scheduled patching. Terraform builds the lab, PowerShell does the checks, Azure Automation runbooks run them, and Event Grid triggers the runbooks from the maintenance window.
+Automated pre- and post-patch health checks around Azure Update Manager scheduled patching. Terraform builds the lab infrastructure, PowerShell performs the checks, Azure Automation runbooks run them, and Event Grid triggers the runbooks from the maintenance window.
  
 Before a patch window opens, a runbook checks each VM from the inside. If the pre-check script fails, the runbook cancels the maintenance run so patching doesn't occur on an unhealthy machine. If the script passes, it snapshots the OS disks and allows Update Manager to patch. After the window, a second runbook validates the VMs again. 
 
